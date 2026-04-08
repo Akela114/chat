@@ -1,0 +1,22 @@
+{
+  "name": "front",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@packages/typescript-config": "*",
+    "@packages/shared": "*"
+  },
+  "devDependencies": {
+    "@packages/typescript-config": "*",
+    "@types/node": "^25.5.2",
+    "@vitejs/plugin-react-swc": "^4.3.0",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.7"
+  }
+}
