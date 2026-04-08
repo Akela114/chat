@@ -1,0 +1,11 @@
+{
+  "name": "@packages/shared",
+  "exports": {
+    "./types": {
+      "types": "./src/types/index.ts"
+    }
+  },
+  "devDependencies": {
+    "@packages/typescript-config": "*"
+  }
+}

@@ -1,19 +1,19 @@
-interface DTOAuth {
+export interface DTOAuth {
     token: string
 }
 
-interface DTOUser {
+export interface DTOUser {
     id: number,
     username: string
 }
 
-interface DTOChat {
+export interface DTOChat {
     id: number,
     name: string | null,
     participants: DTOUser[]
 }
 
-interface DTOMessage {
+export interface DTOMessage {
     id: number,
     text: string,
     sender_id: number,

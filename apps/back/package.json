@@ -4,5 +4,9 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.ts"
+  },
+  "dependencies": {
+    "@packages/typescript-config": "*",
+    "@packages/shared": "*"
   }
 }

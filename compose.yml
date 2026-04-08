@@ -23,7 +23,7 @@ services:
       - pgadmin_data:/var/lib/pgadmin
   back:
     build:
-      context: ./back
+      context: ./apps/back
     restart: unless-stopped
     depends_on:
       - postgres

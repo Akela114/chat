@@ -1,2 +1,4 @@
 *.md
 !README.md
+.turbo
+node_modules
