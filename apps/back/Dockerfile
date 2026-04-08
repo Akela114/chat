@@ -1,10 +1,19 @@
-FROM node:25-alpine
+FROM node:25-slim as base
 
+FROM base as prepare
 WORKDIR /app
+RUN npm install -g turbo@2.9.5
+COPY . .
+RUN turbo prune back --docker
 
-COPY package*.json ./
+FROM base as builder
+WORKDIR /app
+COPY --from=prepare /app/out/json/ .
 RUN npm install
+COPY --from=prepare /app/out/full/ .
 
-COPY src ./src
-
-CMD ["node", "src/index.ts"]
+FROM node:25-alpine as runner
+WORKDIR /app
+COPY --from=builder /app .
+EXPOSE 5000
+ENTRYPOINT ["apps/back/entrypoint.sh"]

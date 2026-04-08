@@ -3,10 +3,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node src/index.ts"
+    "start": "node src/index.ts",
+    "migrate": "node src/migrations/apply.ts"
   },
   "dependencies": {
+    "@packages/shared": "*",
     "@packages/typescript-config": "*",
-    "@packages/shared": "*"
+    "pg": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0"
   }
 }
