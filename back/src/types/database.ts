@@ -1,23 +1,25 @@
-interface User {
+export interface DBUser {
     id: number,
     username: string,
     password: string
 }
 
-interface Chat {
+export interface DBChat {
     id: number,
-    name: string
+    name: string | null
 }
 
-interface ChatParticipant {
+export interface DBChatParticipant {
     id: number,
-    userId: number,
-    chatId: number
+    user_id: number,
+    chat_id: number
 }
 
-interface Message {
+export interface DBMessage {
     id: number,
     text: string,
-    senderId: number,
-    chatId: number
+    sender_id: number,
+    chat_id: number,
+    created_at: Date,
+    updated_at: Date
 }

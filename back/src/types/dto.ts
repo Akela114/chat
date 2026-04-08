@@ -1,16 +1,22 @@
-interface User {
+interface DTOAuth {
+    token: string
+}
+
+interface DTOUser {
     id: number,
     username: string
 }
 
-interface Chat {
+interface DTOChat {
     id: number,
-    name: string,
-    participants: User[]
+    name: string | null,
+    participants: DTOUser[]
 }
 
-interface Message {
+interface DTOMessage {
     id: number,
     text: string,
-    senderId: number
+    sender_id: number,
+    created_at: Date,
+    updated_at: Date
 }
