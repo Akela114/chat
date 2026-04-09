@@ -1,10 +1,10 @@
 import type { DTOAuth, DTOUser, RequestLogin, RequestRegister } from "@packages/shared/types";
-import type { UserRepo } from "../repos/user";
-import { ValidationError } from "../errors/validationError";
-import { hashPassword } from "../utils/password/hashPassword";
-import { NotFoundError } from "../errors/notFoundError";
-import { verifyPassword } from "../utils/password/verifyPassword";
-import { generateJWT } from "../utils/jwt/generateJWT";
+import type { UserRepo } from "../repos/user.ts";
+import { ValidationError } from "../errors/validationError.ts";
+import { hashPassword } from "../utils/password/hashPassword.ts";
+import { NotFoundError } from "../errors/notFoundError.ts";
+import { verifyPassword } from "../utils/password/verifyPassword.ts";
+import { generateJWT } from "../utils/jwt/generateJWT.ts";
 
 export class UserService {
     #userRepo: UserRepo

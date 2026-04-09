@@ -1,5 +1,5 @@
 import { createHmac } from 'crypto';
-import { base64UrlDecode } from './base64Decode';
+import { base64UrlDecode } from './base64Decode.ts';
 
 export function parseJWT(token: string, secret: string) {
   const parts = token.split('.');

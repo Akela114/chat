@@ -1,5 +1,5 @@
 import type { Client } from "pg";
-import type { DBUser } from "../types/database";
+import type { DBUser } from "../types/database.ts";
 
 export class UserRepo {
     #client: Client

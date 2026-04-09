@@ -1,5 +1,5 @@
 import type { Client } from "pg";
-import type { DBChatParticipant, DBChat, DBChatMessage, DBChatWithParticipants, DBChatWithParticipantsAndMessages } from "../types/database";
+import type { DBChatParticipant, DBChat, DBChatMessage, DBChatWithParticipants, DBChatWithParticipantsAndMessages } from "../types/database.ts";
 
 export class ChatRepo {
     #client: Client

@@ -1,6 +1,5 @@
-import { base64UrlEncode } from "./base64Encode";
-
-const crypto = require('crypto');
+import { base64UrlEncode } from "./base64Encode.ts";
+import { createHmac } from "crypto";
 
 export function generateJWT(payload: any, secret: string) {
   const header = {
@@ -12,8 +11,7 @@ export function generateJWT(payload: any, secret: string) {
   const encodedPayload = base64UrlEncode(JSON.stringify(payload));
 
   const signatureInput = `${encodedHeader}.${encodedPayload}`;
-  const signature = crypto
-    .createHmac('sha256', secret)
+  const signature = createHmac('sha256', secret)
     .update(signatureInput)
     .digest('base64')
     .replace(/\+/g, '-')
