@@ -2,7 +2,7 @@
 export interface DBUser {
     id: number,
     username: string,
-    password_salt: string
+    password_hash: string
 }
 
 export interface DBChat {

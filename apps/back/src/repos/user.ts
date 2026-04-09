@@ -16,10 +16,10 @@ export class UserRepo {
         return result.rows[0];
     }
 
-    async createUser(username: string, passwordSalt: string) {
+    async createUser(username: string, passwordHash: string) {
         const result = await this.#client.query<DBUser>(
-            'INSERT INTO users (username, password_salt) VALUES ($1, $2) RETURNING *',
-            [username, passwordSalt]
+            'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING *',
+            [username, passwordHash]
         );
         return result.rows[0];
     }
