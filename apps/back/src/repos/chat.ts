@@ -68,4 +68,12 @@ export class ChatRepo {
         }
        
     }
+
+    async addChatMessage(chatId: number, senderId: number, text: string) {
+        const result = await this.#client.query<DBChatMessage>(
+            'INSERT INTO messages (chat_id, sender_id, text) VALUES ($1, $2, $3) RETURNING *',
+            [chatId, senderId, text]
+        );
+        return result.rows[0];
+    }
 }
