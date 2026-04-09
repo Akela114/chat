@@ -1,10 +1,12 @@
-export interface DTOAuth {
-    token: string
-}
-
 export interface DTOUser {
     id: number,
     username: string
+}
+
+
+export interface DTOAuth {
+    token: string
+    user: DTOUser
 }
 
 export interface DTOChat {
