@@ -1,5 +1,5 @@
 import type { Client } from "pg";
-import type { DBChatParticipant, DBChat, DBChatMessage, DBChatWithParticipants, DBChatWithParticipantsAndMessages } from "../types/database.ts";
+import type { DBChatParticipant, DBChat, DBChatMessage, DBChatWithParticipants, DBChatWithParticipantsAndMessages, DBChatParticipantWithUsername } from "../types/database.ts";
 
 export class ChatRepo {
     #client: Client
@@ -10,10 +10,22 @@ export class ChatRepo {
 
     async getChatsByParticipant(participantId: number): Promise<DBChatWithParticipants[]> {
         const result = await this.#client.query<DBChatWithParticipants>(
-            `SELECT chats.*, json_agg(chat_participants.*) as participants
+            `SELECT chats.*, 
+                json_agg(json_build_object(
+                    'id', chat_participants.id,
+                    'user_id', chat_participants.user_id,
+                    'chat_id', chat_participants.chat_id,
+                    'username', users.username
+                )) as participants
             FROM chats
             JOIN chat_participants ON chat_participants.chat_id = chats.id
-            WHERE chat_participants.user_id = $1
+            JOIN users ON users.id = chat_participants.user_id
+            WHERE EXISTS (
+                SELECT 1 
+                FROM chat_participants cp 
+                WHERE cp.chat_id = chats.id 
+                AND cp.user_id = $1
+            )
             GROUP BY chats.id`,
             [participantId]
         );
@@ -29,8 +41,11 @@ export class ChatRepo {
         if (!resultChat) {
             return null
         }
-        const chatParticipants = await this.#client.query<DBChatParticipant>(
-            'SELECT * FROM chat_participants WHERE chat_id = $1',
+        const chatParticipants = await this.#client.query<DBChatParticipantWithUsername>(
+            `SELECT chat_participants.id, chat_participants.user_id, chat_participants.chat_id, users.username
+            FROM chat_participants
+            JOIN users ON users.id = chat_participants.user_id
+            WHERE chat_id = $1`,
             [chatId]
         );
         const chatMessages = await this.#client.query<DBChatMessage>(
@@ -48,14 +63,20 @@ export class ChatRepo {
         try {
             await this.#client.query('BEGIN');
             const result = await this.#client.query<DBChat>(
-                'INSERT INTO chats RETURNING *'
+                'INSERT INTO chats DEFAULT VALUES RETURNING *'
             );
             const createdChat = result.rows[0];
-            const createdChatParticipants = await this.#client.query<DBChatParticipant>(
+            await this.#client.query<DBChatParticipant>(
                 `INSERT INTO chat_participants (user_id, chat_id)
-                SELECT * FROM UNNEST($1::int[], $2::int[])
-                RETURNING *`,
+                SELECT * FROM UNNEST($1::int[], $2::int[])`,
                 [participantIds, Array.from({ length: participantIds.length }).fill(createdChat.id)]
+            );
+            const createdChatParticipants = await this.#client.query<DBChatParticipantWithUsername>(
+                `SELECT chat_participants.id, chat_participants.user_id, chat_participants.chat_id, users.username
+                FROM chat_participants
+                JOIN users ON users.id = chat_participants.user_id
+                WHERE chat_id = $1`,
+                [createdChat.id]
             );
             await this.#client.query('COMMIT');
             return {

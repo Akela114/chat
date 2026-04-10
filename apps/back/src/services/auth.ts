@@ -5,8 +5,10 @@ import { hashPassword } from "../utils/password/hashPassword.ts";
 import { NotFoundError } from "../errors/notFoundError.ts";
 import { verifyPassword } from "../utils/password/verifyPassword.ts";
 import { generateJWT } from "../utils/jwt/generateJWT.ts";
+import { parseJWT } from "../utils/jwt/parseJWT.ts";
+import { UnauthorizedError } from "../errors/unauthorizedError.ts";
 
-export class UserService {
+export class AuthService {
     #userRepo: UserRepo
 
     constructor(userRepo: UserRepo) {
@@ -41,6 +43,22 @@ export class UserService {
         return {
             token,
             user: userDto
+        }
+    }
+
+    async authorizeUserByToken(token: string | null): Promise<DTOUser> {
+        try {
+            if (!token) {
+                throw new Error;
+            }
+            const { payload } = parseJWT(token, 'secret');
+            const user = await this.#userRepo.getUserByUsername(payload.username);
+            if (!user) {
+                throw new Error;
+            }
+            return user;
+        } catch {
+            throw new UnauthorizedError('invalid token');
         }
     }
 

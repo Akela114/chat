@@ -1,11 +1,15 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import { Client } from 'pg';
 import { UserRepo } from '../repos/user.ts';
-import { UserService } from '../services/user.ts';
-import { PublicApi } from './publicApi.ts';
+import { AuthService } from '../services/auth.ts';
+import { AuthApi } from './auth.ts';
 import { NotFoundError } from '../errors/notFoundError.ts';
 import { ValidationError } from '../errors/validationError.ts';
 import { getRequestBody } from '../utils/getRequestBody.ts';
+import { ForbiddenError } from '../errors/forbiddenError.ts';
+import { UnauthorizedError } from '../errors/unauthorizedError.ts';
+import { ChatService } from '../services/chat.ts';
+import { ChatRepo } from '../repos/chat.ts';
 
 // TODO: вынести в переменные окружения
 const dbClient = new Client({
@@ -18,13 +22,18 @@ const dbClient = new Client({
 await dbClient.connect();
 
 const userRepo = new UserRepo(dbClient);
-const userService = new UserService(userRepo);
-const publicApi = new PublicApi(userService);
+const chatRepo = new ChatRepo(dbClient);
+const authService = new AuthService(userRepo);
+const chatService = new ChatService(chatRepo, userRepo);
+const authApi = new AuthApi(authService);
 
 export const apiRootHandler = (async (req: IncomingMessage, res: ServerResponse) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', '*');
+    
+    const authHeader = req.headers.authorization;
+    const authToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
     const url = new URL(req.url ?? "", `http://${req.headers.host}`);
             
@@ -39,8 +48,9 @@ export const apiRootHandler = (async (req: IncomingMessage, res: ServerResponse)
         
         if (req.method === 'POST') {
             switch (url.pathname) {
+                // Public routes
                 case '/api/auth/register': {
-                    const body = await publicApi.registerUser(
+                    const body = await authApi.registerUser(
                         await getRequestBody(req)
                     );
                     res.statusCode = 201;
@@ -48,15 +58,61 @@ export const apiRootHandler = (async (req: IncomingMessage, res: ServerResponse)
                     return;
                 }
                 case '/api/auth/login': {
-                    const body = await publicApi.loginUser(
+                    const body = await authApi.loginUser(
                         await getRequestBody(req)
                     );
                     res.statusCode = 200;
                     res.end(JSON.stringify(body));
                     return;
                 }
+                // Private routes
+                case '/api/chats': {
+                    const authorizedUser = await authService.authorizeUserByToken(authToken);
+                    const body = await chatService.createChatWithUser(
+                        await getRequestBody(req), authorizedUser
+                    );
+                    res.statusCode = 201;
+                    res.end(JSON.stringify(body));
+                    return;
+                }
+            }
+            let matches = url.pathname.match(/^\/api\/chats\/(\d+)\/messages$/);
+            if (matches) {
+                const chatId = matches[1];
+                const authorizedUser = await authService.authorizeUserByToken(authToken);
+                const body = await chatService.addChatMessage(
+                    { id: chatId },
+                    await getRequestBody(req),
+                    authorizedUser
+                );
+                res.statusCode = 201;
+                res.end(JSON.stringify(body));
+                return;
             }
         }
+
+        if (req.method === 'GET') {
+            switch (url.pathname) {
+                // Private routes
+                case '/api/chats': {
+                    const authorizedUser = await authService.authorizeUserByToken(authToken);
+                    const body = await chatService.getChatsByParticipant(authorizedUser);
+                    res.statusCode = 200;
+                    res.end(JSON.stringify(body));
+                    return;
+                }
+            }
+            let matches = url.pathname.match(/^\/api\/chats\/(\d+)$/);
+            if (matches) {
+                const chatId = matches[1];
+                const authorizedUser = await authService.authorizeUserByToken(authToken);
+                const body = await chatService.getChatById({ id: chatId }, authorizedUser);
+                res.statusCode = 200;
+                res.end(JSON.stringify(body));
+                return;
+            }
+        }
+
         throw new NotFoundError('route not found');
     } catch (error) {
         if (error instanceof NotFoundError) {
@@ -69,6 +125,18 @@ export const apiRootHandler = (async (req: IncomingMessage, res: ServerResponse)
             res.statusCode = 400;
             res.end(JSON.stringify({ message: error.message }));
             console.log("ValidationError", error.message);
+            return;
+        }
+        if (error instanceof ForbiddenError) {
+            res.statusCode = 403;
+            res.end(JSON.stringify({ message: error.message }));
+            console.error("ForbiddenError", error);
+            return;
+        }
+        if (error instanceof UnauthorizedError) {
+            res.statusCode = 401;
+            res.end(JSON.stringify({ message: error.message }));
+            console.error("UnauthorizedError", error);
             return;
         }
         res.statusCode = 500;

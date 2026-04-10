@@ -16,12 +16,16 @@ export interface DBChatParticipant {
     chat_id: number
 }
 
+export interface DBChatParticipantWithUsername extends DBChatParticipant {
+    username: string
+}
+
 export interface DBChatWithParticipants extends DBChat {
-    participants: DBChatParticipant[]
+    participants: DBChatParticipantWithUsername[]
 }
 
 export interface DBChatWithParticipantsAndMessages extends DBChat {
-    participants: DBChatParticipant[]
+    participants: DBChatParticipantWithUsername[]
     messages: DBChatMessage[]
 }
 
