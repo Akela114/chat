@@ -30,6 +30,7 @@ services:
       - postgres
     ports:
       - "5000:5000"
+      - "5005:5005"
 
 volumes:
   postgres_data:

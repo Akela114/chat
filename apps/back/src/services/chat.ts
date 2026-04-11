@@ -1,13 +1,21 @@
-import type { DTOChat, DTOChatWithMessages, DTOMessage, RequestAddMessage, RequestCreateChat } from "@packages/shared/types";
+import type { DTOChat, DTOChatWithMessages, DTOMessage, RequestAddMessage, RequestCreateChat, WSEvent, WSPayload } from "@packages/shared/types";
 import { ValidationError } from "../errors/validationError.ts";
 import type { ChatRepo } from "../repos/chat.ts";
 import type { UserRepo } from "../repos/user.ts";
 import { NotFoundError } from "../errors/notFoundError.ts";
 import { ForbiddenError } from "../errors/forbiddenError.ts";
+import { randomUUID } from 'crypto'
+
+type TChatUpdateSubscriberCallback = <T extends WSEvent>(
+    participantsIds: number[],
+    event: WSEvent,
+    message: Extract<WSPayload, { event: T }>['payload']
+) => void
 
 export class ChatService {
     #chatRepo: ChatRepo
     #userRepo: UserRepo
+    #chatUpdatesSubscribers: Map<string, TChatUpdateSubscriberCallback> = new Map();
 
     constructor(chatRepo: ChatRepo, userRepo: UserRepo) {
         this.#chatRepo = chatRepo;
@@ -36,7 +44,7 @@ export class ChatService {
             throw new ValidationError('cannot create a chat with yourself');
         }
         const result = await this.#chatRepo.createChat([user.id, authorizedUser.id]);
-        return {
+        const formattedResult = {
             id: result.id,
             name: result.name,
             participants: result.participants.map((participant) => ({
@@ -44,6 +52,13 @@ export class ChatService {
                 username: participant.username,
             }))
         }
+
+        this.#notifyChatUpdatesSubscribers(
+            [user.id],
+            'chatCreated',
+            formattedResult
+        )
+        return formattedResult
     }
 
     async getChatById(params: unknown, authorizedUser: { id: number }): Promise<DTOChatWithMessages> {
@@ -73,13 +88,31 @@ export class ChatService {
         this.#validateAddChatMessageParams(params);
         const chat = await this.getChatById({ id: params.id }, authorizedUser);
         const result = await this.#chatRepo.addChatMessage(chat.id, authorizedUser.id, payload.text);
-        return {
+        const formattedResult = {
             id: result.id,
+            chat_id: result.chat_id,
             sender_id: result.sender_id,
             text: result.text,
             created_at: result.created_at,
             updated_at: result.updated_at
         }
+        
+        this.#notifyChatUpdatesSubscribers(
+            chat.participants.filter((participant) => participant.id !== authorizedUser.id).map((participant) => participant.id),
+            'chatMessageAdded',
+            formattedResult
+        )
+        return formattedResult
+    }
+
+    addChatUpdatesSubscriber(subscriber: TChatUpdateSubscriberCallback) {
+        const id = randomUUID();
+        this.#chatUpdatesSubscribers.set(id, subscriber);
+        return () => this.#chatUpdatesSubscribers.delete(id);
+    }
+
+    #notifyChatUpdatesSubscribers(participantsIds: number[], event: WSEvent, payload: Extract<WSPayload, { event: WSEvent }>['payload']) {
+        this.#chatUpdatesSubscribers.forEach((subscriber) => subscriber(participantsIds, event, payload));
     }
     
     #validateGetChatByIdParams(params: unknown): asserts params is { id: string } {

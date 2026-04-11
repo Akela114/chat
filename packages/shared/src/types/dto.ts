@@ -11,6 +11,7 @@ export interface DTOAuth {
 
 export interface DTOMessage {
     id: number,
+    chat_id: number,
     text: string,
     sender_id: number,
     created_at: Date,

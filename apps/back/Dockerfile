@@ -15,5 +15,5 @@ COPY --from=prepare /app/out/full/ .
 FROM node:25-alpine as runner
 WORKDIR /app
 COPY --from=builder /app .
-EXPOSE 5000
+EXPOSE 5000 5005
 ENTRYPOINT ["apps/back/entrypoint.sh"]
