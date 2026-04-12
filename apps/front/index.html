@@ -1,15 +1,77 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="./node_modules/normalize.css/normalize.css">
-    <link rel="stylesheet" href="./css/style.css">
-    <title>Chat</title>
-</head>
-<body>
-    <div id="app">
-        <div class="loading">loading...</div>
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Мессенджер</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div class="container" id="authContainer">
+      <div class="form-container">
+        <h2 id="formTitle">Вход</h2>
+        <div id="errorMessage" class="error" style="display: none"></div>
+        <input type="text" id="username" placeholder="Имя пользователя" />
+        <input type="password" id="password" placeholder="Пароль" />
+        <button id="submitBtn">Войти</button>
+        <button id="toggleBtn" class="toggle-btn">Зарегистрироваться</button>
+      </div>
     </div>
-</body>
+
+    <div class="chat-container" id="chatContainer">
+      <div class="chat-header">
+        <div class="chat-title">Мессенджер</div>
+        <div class="user-info">
+          <span id="currentUser"></span>
+          <button id="logoutBtn" class="logout-btn">Выйти</button>
+        </div>
+      </div>
+
+      <div class="chat-layout">
+        <div class="chats-sidebar">
+          <div class="new-chat">
+            <input
+              type="text"
+              id="newChatUsername"
+              placeholder="Username для нового чата"
+            />
+            <button id="createChatBtn">Создать чат</button>
+          </div>
+          <div class="chats-list" id="chatsList">
+            <!-- Список чатов -->
+          </div>
+        </div>
+
+        <div class="chat-main">
+          <div class="chat-info" id="chatInfo">
+            <h3>Выберите чат</h3>
+          </div>
+          <div class="messages-area" id="messagesArea">
+            <div class="welcome-message">
+              <p>Выберите чат, чтобы начать общение</p>
+            </div>
+          </div>
+          <div
+            class="message-input-area"
+            id="messageInputArea"
+            style="display: none"
+          >
+            <input
+              type="text"
+              id="messageInput"
+              placeholder="Введите сообщение..."
+            />
+            <button id="sendBtn">Отправить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/websocket.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/app.js"></script>
+  </body>
 </html>
