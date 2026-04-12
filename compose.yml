@@ -21,6 +21,12 @@ services:
       - "8080:80"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+  front:
+    build:
+      context: .
+      dockerfile: ./apps/front/Dockerfile
+    ports:
+      - "8100:80"
   back:
     build:
       context: .
