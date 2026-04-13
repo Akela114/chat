@@ -1,4 +1,4 @@
-import type { DTOChat, DTOChatWithMessages, DTOMessage, RequestAddMessage, RequestCreateChat, WSEvent, WSPayload } from "@packages/shared/types";
+import type { DTOAddedParticipant, DTOChat, DTOChatWithMessages, DTOMessage, DTOUser, RequestAddChatParticipant, RequestAddMessage, RequestCreateChat, WSEvent, WSPayload } from "@packages/shared/types";
 import { ValidationError } from "../errors/validationError.ts";
 import type { ChatRepo } from "../repos/chat.ts";
 import type { UserRepo } from "../repos/user.ts";
@@ -87,6 +87,12 @@ export class ChatService {
         this.#validateAddChatMessagePayload(payload);
         this.#validateAddChatMessageParams(params);
         const chat = await this.getChatById({ id: params.id }, authorizedUser);
+        if (!chat) {
+            throw new NotFoundError('chat not found');
+        }
+        if (!chat.participants.some((participant) => participant.id === authorizedUser.id)) {
+            throw new ForbiddenError('not allowed to access this chat');
+        }
         const result = await this.#chatRepo.addChatMessage(chat.id, authorizedUser.id, payload.text);
         const formattedResult = {
             id: result.id,
@@ -100,6 +106,39 @@ export class ChatService {
         this.#notifyChatUpdatesSubscribers(
             chat.participants.filter((participant) => participant.id !== authorizedUser.id).map((participant) => participant.id),
             'chatMessageAdded',
+            formattedResult
+        )
+        return formattedResult
+    }
+
+    async addChatParticipant(
+        params: unknown, payload: unknown, authorizedUser: { id: number }
+    ): Promise<DTOAddedParticipant> {
+        this.#validateAddChatParticipantPayload(payload);
+        this.#validateAddChatParticipantParams(params);
+        const chat = await this.getChatById({ id: params.id }, authorizedUser);
+        if (!chat) {
+            throw new NotFoundError('chat not found');
+        }
+        if (chat.participants.some((participant) => participant.username === payload.username)) {
+            throw new ValidationError('user is already a participant of this chat');
+        }
+        if (!chat.participants.some((participant) => participant.id === authorizedUser.id)) {
+            throw new ForbiddenError('not allowed to access this chat');
+        }
+        const user = await this.#userRepo.getUserByUsername(payload.username);
+        if (!user) {
+            throw new ValidationError('user not found');
+        }
+        const result = await this.#chatRepo.addChatParticipant(chat.id, user.id);
+        const formattedResult = {
+            id: result.id,
+            username: result.username,
+            chat_id: chat.id
+        }
+        this.#notifyChatUpdatesSubscribers(
+            [...chat.participants.filter((participant) => participant.id !== user.id).map((participant) => participant.id), result.id],
+            'chatParticipantAdded',
             formattedResult
         )
         return formattedResult
@@ -148,6 +187,24 @@ export class ChatService {
         }
         if (!('text' in payload) || typeof payload.text !== 'string') {
             throw new ValidationError('text must be a string');
+        }
+    }
+
+    #validateAddChatParticipantPayload(payload: unknown): asserts payload is RequestAddChatParticipant {
+        if (typeof payload !== 'object' || payload === null) {
+            throw new ValidationError('payload must be an object');
+        }
+        if (!('username' in payload) || typeof payload.username !== 'string') {
+            throw new ValidationError('username must be a string');
+        }
+    }
+
+    #validateAddChatParticipantParams(params: unknown): asserts params is { id: string } {
+        if (typeof params !== 'object' || params === null) {
+            throw new ValidationError('params must be provided');
+        }
+        if (!('id' in params) || !params.id || isNaN(Number(params.id))) {
+            throw new ValidationError('id must be a number');
         }
     }
 }

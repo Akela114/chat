@@ -15,3 +15,7 @@ export interface RequestCreateChat {
 export interface RequestAddMessage {
     text: string,
 }
+
+export interface RequestAddChatParticipant {
+    username: string
+}

@@ -3,7 +3,6 @@ export interface DTOUser {
     username: string
 }
 
-
 export interface DTOAuth {
     token: string
     user: DTOUser
@@ -26,4 +25,10 @@ export interface DTOChat {
 
 export interface DTOChatWithMessages extends DTOChat {
     messages: DTOMessage[]
+}
+
+export interface DTOAddedParticipant {
+    id: number,
+    username: string
+    chat_id: number
 }

@@ -1,5 +1,5 @@
 import type { Client } from "pg";
-import type { DBChatParticipant, DBChat, DBChatMessage, DBChatWithParticipants, DBChatWithParticipantsAndMessages, DBChatParticipantWithUsername } from "../types/database.ts";
+import type { DBChatParticipant, DBChat, DBChatMessage, DBChatWithParticipants, DBChatWithParticipantsAndMessages, DBChatParticipantWithUsername, DBUser } from "../types/database.ts";
 
 export class ChatRepo {
     #client: Client
@@ -94,6 +94,18 @@ export class ChatRepo {
         const result = await this.#client.query<DBChatMessage>(
             'INSERT INTO messages (chat_id, sender_id, text) VALUES ($1, $2, $3) RETURNING *',
             [chatId, senderId, text]
+        );
+        return result.rows[0];
+    }
+
+    async addChatParticipant(chatId: number, userId: number) {
+        await this.#client.query<DBChatParticipant>(
+            'INSERT INTO chat_participants (user_id, chat_id) VALUES ($1, $2) RETURNING *',
+            [userId, chatId]
+        );
+        const result = await this.#client.query<DBUser>(
+            'SELECT * FROM users WHERE id = $1',
+            [userId]
         );
         return result.rows[0];
     }
