@@ -295,6 +295,20 @@ button:hover {
   display: inline-block;
 }
 
+.chatButtons {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.leave-chat-btn {
+  background: #f44336 !important;
+}
+
+.leave-chat-btn:hover {
+  background: #e53935 !important;
+}
+
 .add-participant-btn {
   background: #48bb78 !important;
 }

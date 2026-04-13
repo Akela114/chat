@@ -31,6 +31,7 @@ class ChatManager {
         this.ws.on('chatCreated', (payload) => this.onChatCreated(payload));
         this.ws.on('chatMessageAdded', (payload) => this.onMessageReceived(payload));
         this.ws.on('chatParticipantAdded', (payload) => this.onParticipantAdded(payload));
+        this.ws.on('chatParticipantRemoved', (payload) => this.onParticipantRemoved(payload));
         
         window.addEventListener('auth:success', () => {
             this.loadChats();
@@ -175,7 +176,7 @@ class ChatManager {
         
         for (const chat of sortedChats) {
             const otherParticipants = chat.participants.filter(p => p.id !== currentUser?.id);
-            const chatName = chat.name || otherParticipants.map(p => p.username).join(', ');
+            const chatName = chat.name || otherParticipants.map(p => p.username).join(', ') || 'пустой чат';
             const unreadCount = this.unreadCounts.get(chat.id) || 0;
             const isGroup = chat.participants.length > 2;
             
@@ -249,20 +250,27 @@ class ChatManager {
     renderChat(chat) {
         const currentUser = this.auth.getCurrentUser();
         const otherParticipants = chat.participants.filter(p => p.id !== currentUser?.id);
-        const chatName = chat.name || otherParticipants.map(p => p.username).join(', ');
+        const chatName = chat.name || otherParticipants.map(p => p.username).join(', ') || 'пустой чат';
         const isGroup = chat.participants.length > 2;
         
         this.chatInfo.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                 <div>
                     <h3>${this.escapeHtml(chatName)} ${isGroup ? '(Группа)' : ''}</h3>
                     <div style="font-size: 12px; color: #666; margin-top: 5px;">
                         Участники: ${chat.participants.map(p => this.escapeHtml(p.username)).join(', ')}
                     </div>
                 </div>
-                <button id="addParticipantBtn" class="add-participant-btn" style="width: auto; padding: 8px 15px; background: #48bb78;">
-                    + Добавить участника
-                </button>
+                <div class="chatButtons">
+                    <button id="addParticipantBtn" class="add-participant-btn" style="width: auto; padding: 8px 15px; background: #48bb78;">
+                        + Добавить участника
+                    </button>
+                    <button id="leaveChatBtn" class="leave-chat-btn" style="width: auto; padding: 6px 8px; background: #f56565;" title="Выйти из чата">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6" width="20" height="20" style="transform: translateY(1px);">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                        </svg>
+                    </button>
+                </div>
             </div>
         `;
         
@@ -285,6 +293,11 @@ class ChatManager {
         if (addBtn) {
             addBtn.addEventListener('click', () => this.showAddParticipantDialog());
         }
+
+        const leaveBtn = document.getElementById('leaveChatBtn');
+        if (leaveBtn) {
+            leaveBtn.addEventListener('click', () => this.leaveCurrentChat());
+        }
     }
     
     renderMessage(message) {
@@ -301,12 +314,10 @@ class ChatManager {
         if (!isOwn) {
             const chat = this.chats.get(this.currentChatId);
             const sender = chat?.participants.find(p => p.id === message.sender_id);
-            if (sender) {
-                const senderSpan = document.createElement('div');
-                senderSpan.className = 'message-sender';
-                senderSpan.textContent = this.escapeHtml(sender.username);
-                messageContent.appendChild(senderSpan);
-            }
+            const senderSpan = document.createElement('div');
+            senderSpan.className = 'message-sender';
+            senderSpan.textContent = sender ? this.escapeHtml(sender.username) : 'Удаленный участник';
+            messageContent.appendChild(senderSpan);
         }
         
         const textSpan = document.createElement('div');
@@ -385,6 +396,14 @@ class ChatManager {
     
     onParticipantAdded(payload) {
         console.log('Participant added:', payload);
+        if (this.currentChatId === payload.chat_id) {
+            this.openChat(this.currentChatId);
+        }
+        this.loadChats();
+    }
+
+    onParticipantRemoved(payload) {
+        console.log('Participant removed:', payload);
         if (this.currentChatId === payload.chat_id) {
             this.openChat(this.currentChatId);
         }
@@ -548,6 +567,24 @@ class ChatManager {
             this.showError(error.message);
         }
     }
+
+    async leaveCurrentChat() {
+        if (!this.currentChatId) return;
+        
+        try {
+            await this.api.leaveChat(this.currentChatId);
+            this.chats.delete(this.currentChatId);
+            this.renderChatsList();
+            this.currentChatId = null;
+            this.messagesArea.innerHTML = '<div class="welcome-message"><p>Выберите чат, чтобы начать общение</p></div>';
+            this.chatInfo.innerHTML = '<h3>Выберите чат</h3>';
+            this.messageInputArea.style.display = 'none';
+            localStorage.removeItem('last_opened_chat');
+            this.showError('Вы покинули чат');
+        } catch (error) {
+            this.showError(error.message);
+        }
+    } 
     
     scrollToBottom() {
         if (this.messagesArea) {

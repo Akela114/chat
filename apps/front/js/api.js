@@ -95,4 +95,8 @@ class API {
     async markMessagesAsRead(chatId, messageId) {
         return this.request(`/chats/${chatId}/readMessages`, 'POST', { messageId }, true);
     }
+
+    async leaveChat(chatId) {
+        return this.request(`/chats/${chatId}/participants/self`, 'DELETE', null, true);
+    }
 }
