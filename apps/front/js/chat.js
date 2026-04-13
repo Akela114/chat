@@ -197,8 +197,6 @@ class ChatManager {
     }
     
     async openChat(chatId) {
-        if (this.currentChatId === chatId) return;
-        
         try {
             this.showMessagesLoadingIndicator();
             
