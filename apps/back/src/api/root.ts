@@ -1,4 +1,3 @@
-import type { IncomingMessage, ServerResponse } from 'http'
 import { AuthService } from '../services/auth.ts';
 import { AuthApi } from './auth.ts';
 import { NotFoundError } from '../errors/notFoundError.ts';
@@ -14,7 +13,7 @@ export const createApiRootHandler = (({ authService, chatService } : {
 }) => {
     const authApi = new AuthApi(authService);
 
-    return async (req: IncomingMessage, res: ServerResponse) => {
+    return async (req: any, res: any) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', '*');

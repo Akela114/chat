@@ -1,10 +1,9 @@
-import { type IncomingMessage } from 'http';
 import { ValidationError } from '../errors/validationError.ts';
 
-export const getRequestBody = (req: IncomingMessage): Promise<unknown> => {
+export const getRequestBody = (req: any): Promise<unknown> => {
     return new Promise((resolve, reject) => {
         let body = '';
-        req.on('data', chunk => body += chunk);
+        req.on('data', (chunk: any) => body += chunk);
         req.on('end', () => {
             try {
                 resolve(JSON.parse(body));

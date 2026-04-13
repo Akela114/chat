@@ -9,5 +9,5 @@ export async function verifyPassword(password: string, storedHash: string) {
 
   const derivedKey = await promisify(scrypt)(password, salt, 64);
 
-  return timingSafeEqual((derivedKey as NonSharedBuffer), key);
+  return timingSafeEqual((derivedKey as any), key);
 }

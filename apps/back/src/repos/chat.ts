@@ -1,10 +1,11 @@
-import type { Client } from "pg";
 import type { DBChatParticipant, DBChat, DBChatMessage, DBChatWithParticipants, DBChatWithParticipantsAndMessages, DBChatParticipantWithUsername, DBUser } from "../types/database.ts";
 
 export class ChatRepo {
-    #client: Client
+    #client: {
+        query: <T>(query: string, values?: any[]) => Promise<{ rows: T[]}>
+    }
 
-    constructor(client: Client) {
+    constructor(client: any) {
         this.#client = client
     }
 
