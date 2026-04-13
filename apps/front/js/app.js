@@ -40,6 +40,9 @@ document.addEventListener('DOMContentLoaded', () => {
             userSpan.textContent = event.detail.user.username;
         }
     });
+
+    auth.init();
+    chatManager.init()
     
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {

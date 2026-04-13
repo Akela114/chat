@@ -19,8 +19,6 @@ class ChatManager {
         this.createChatBtn = document.getElementById('createChatBtn');
         this.newChatUsername = document.getElementById('newChatUsername');
         this.currentUserSpan = document.getElementById('currentUser');
-        
-        this.init();
     }
     
     init() {

@@ -12,8 +12,6 @@ class Auth {
         this.errorDiv = document.getElementById('errorMessage');
         this.usernameInput = document.getElementById('username');
         this.passwordInput = document.getElementById('password');
-        
-        this.init();
     }
     
     init() {
