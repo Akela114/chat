@@ -1,4 +1,3 @@
-import type { IncomingMessage, ServerResponse } from 'http'
 import { AuthService } from '../services/auth.ts';
 import { AuthApi } from './auth.ts';
 import { NotFoundError } from '../errors/notFoundError.ts';
@@ -14,9 +13,9 @@ export const createApiRootHandler = (({ authService, chatService } : {
 }) => {
     const authApi = new AuthApi(authService);
 
-    return async (req: IncomingMessage, res: ServerResponse) => {
+    return async (req: any, res: any) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', '*');
         
         const authHeader = req.headers.authorization;
@@ -128,6 +127,20 @@ export const createApiRootHandler = (({ authService, chatService } : {
                     const authorizedUser = await authService.authorizeUserByToken(authToken);
                     const body = await chatService.getChatById({ id: chatId }, authorizedUser);
                     res.statusCode = 200;
+                    res.end(JSON.stringify(body));
+                    return;
+                }
+            }
+
+            if (req.method === 'DELETE') {
+                let matches = url.pathname.match(/^\/api\/chats\/(\d+)\/participants\/self$/);
+                if (matches) {
+                    const chatId = matches[1];
+                    const authorizedUser = await authService.authorizeUserByToken(authToken);
+                    const body = await chatService.removeSelfFromChatParticipants(
+                        { id: chatId },
+                        authorizedUser
+                    );
                     res.end(JSON.stringify(body));
                     return;
                 }

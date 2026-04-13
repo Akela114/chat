@@ -15,7 +15,8 @@ export interface DBChatParticipant {
     id: number,
     user_id: number,
     chat_id: number,
-    last_read_message_id: number
+    last_read_message_id: number,
+    disabled: boolean
 }
 
 export interface DBChatParticipantWithUsername extends DBChatParticipant {

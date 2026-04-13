@@ -1,19 +1,18 @@
-import type { WebSocketServer, WebSocket } from "ws";
 import type { AuthService } from "../services/auth";
 import { randomUUID } from "crypto";
 
 export class WSS {
-    #wsUsersMap = new Map<number, Map<string, WebSocket>>();
+    #wsUsersMap = new Map<number, Map<string, any>>();
 
-    constructor(wss: WebSocketServer, authService: AuthService) {
-        wss.on('connection', async (ws, req) => {
+    constructor(wss: any, authService: AuthService) {
+        wss.on('connection', async (ws: any, req: any) => {
             try {
                 const url = new URL(req.url ?? "", `http://${req.headers.host}`);
                 const token = url.searchParams.get('token');
                 const user = await authService.authorizeUserByToken(token);
 
                 if (user) {
-                    const wsMap = this.#wsUsersMap.get(user.id) ?? new Map<string, WebSocket>();
+                    const wsMap = this.#wsUsersMap.get(user.id) ?? new Map<string, any>();
                     const uuid = randomUUID();
                     wsMap.set(uuid, ws);
                     this.#wsUsersMap.set(user.id, wsMap);

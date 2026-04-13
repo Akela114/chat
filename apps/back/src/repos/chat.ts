@@ -1,10 +1,11 @@
-import type { Client } from "pg";
 import type { DBChatParticipant, DBChat, DBChatMessage, DBChatWithParticipants, DBChatWithParticipantsAndMessages, DBChatParticipantWithUsername, DBUser } from "../types/database.ts";
 
 export class ChatRepo {
-    #client: Client
+    #client: {
+        query: <T>(query: string, values?: any[]) => Promise<{ rows: T[]}>
+    }
 
-    constructor(client: Client) {
+    constructor(client: any) {
         this.#client = client
     }
 
@@ -30,9 +31,10 @@ export class ChatRepo {
             WHERE EXISTS (
                 SELECT 1 
                 FROM chat_participants cp 
-                WHERE cp.chat_id = chats.id 
+                WHERE cp.chat_id = chats.id
+                AND cp.disabled = false
                 AND cp.user_id = $1
-            )
+            ) AND chat_participants.disabled = false
             GROUP BY chats.id`,
             [participantId]
         );
@@ -52,7 +54,7 @@ export class ChatRepo {
             `SELECT chat_participants.id, chat_participants.user_id, chat_participants.chat_id, users.username
             FROM chat_participants
             JOIN users ON users.id = chat_participants.user_id
-            WHERE chat_id = $1`,
+            WHERE chat_id = $1 AND disabled = false`,
             [chatId]
         );
         const chatMessages = await this.#client.query<DBChatMessage>(
@@ -67,13 +69,6 @@ export class ChatRepo {
     }
 
     async getUnreadCount(chatId: number, userId: number): Promise<number> {
-        const id = await this.#client.query<{id: number}>(
-            'SELECT * FROM chat_participants WHERE chat_id = $1 AND user_id = $2',
-            [chatId, userId]
-        )
-
-        console.log(id.rows)
-
         const result = await this.#client.query<{unread_count: number}>(
             `SELECT (SELECT COUNT(*)::int 
                 FROM messages 
@@ -84,14 +79,13 @@ export class ChatRepo {
                 )) as unread_count`,
             [chatId, userId]
         );
-        console.log(result.rows)
         return result.rows[0].unread_count
     }
 
     async getPossibleParticipants(chatId?: number): Promise<DBUser[]> {
         if (chatId) {
             const result = await this.#client.query<DBUser>(
-                'SELECT * FROM users WHERE id NOT IN (SELECT user_id FROM chat_participants WHERE chat_id = $1)',
+                'SELECT * FROM users WHERE id NOT IN (SELECT user_id FROM chat_participants WHERE chat_id = $1 AND disabled = false)',
                 [chatId]
             );
             return result.rows;
@@ -144,10 +138,21 @@ export class ChatRepo {
     }
 
     async addChatParticipant(chatId: number, userId: number): Promise<DBUser> {
-        await this.#client.query<DBChatParticipant>(
-            'INSERT INTO chat_participants (user_id, chat_id) VALUES ($1, $2) RETURNING *',
-            [userId, chatId]
-        );
+        const existingParticipant = await this.#client.query<DBChatParticipant>(
+            'SELECT * FROM chat_participants WHERE chat_id = $1 AND user_id = $2',
+            [chatId, userId]
+        )
+        if (existingParticipant.rows.length > 0) {
+            await this.#client.query<DBChatParticipant>(
+                'UPDATE chat_participants SET disabled = false WHERE chat_id = $1 AND user_id = $2',
+                [chatId, userId]
+            );
+        } else {
+            await this.#client.query<DBChatParticipant>(
+                'INSERT INTO chat_participants (user_id, chat_id) VALUES ($1, $2) RETURNING *',
+                [userId, chatId]
+            );
+        }
         const result = await this.#client.query<DBUser>(
             'SELECT * FROM users WHERE id = $1',
             [userId]
@@ -160,5 +165,17 @@ export class ChatRepo {
             'UPDATE chat_participants SET last_read_message_id = $1 WHERE chat_id = $2 AND user_id = $3',
             [messageId, chatId, userId]
         );
+    }
+
+    async disableChatParticipant(chatId: number, userId: number): Promise<DBUser> {
+        await this.#client.query<DBChatParticipant>(
+            'UPDATE chat_participants SET disabled = true WHERE chat_id = $1 AND user_id = $2',
+            [chatId, userId]
+        );
+        const result = await this.#client.query<DBUser>(
+            'SELECT * FROM users WHERE id = $1',
+            [userId]
+        );
+        return result.rows[0];
     }
 }

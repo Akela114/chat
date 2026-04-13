@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { promisify } from 'util'
 
-const getLastMigrationVersion = async (client: Client) => {
+const getLastMigrationVersion = async (client: any) => {
   await client.query('CREATE TABLE IF NOT EXISTS migrations (id SERIAL PRIMARY KEY, version INTEGER NOT NULL)');
   try {
     const result = await client.query('SELECT MAX(version) FROM migrations');
@@ -25,13 +25,13 @@ async function migrate() {
   
   const lastMigrationVersion = await getLastMigrationVersion(client);
   
-  const migrationsDir = path.join(import.meta.dirname, './');
+  const migrationsDir = path.join((import.meta as any).dirname, './');
   const files = await promisify(fs.readdir)(migrationsDir);
-  const filteredFiles = files.filter((file) => {
+  const filteredFiles = files.filter((file: any) => {
     const splittedFileName = file.split('.');
     if (splittedFileName.at(-1) !== 'sql') return false;
     return parseInt(splittedFileName[0]) > lastMigrationVersion;
-  }).sort((fileA, fileB) => {
+  }).sort((fileA: any, fileB: any) => {
     const fileAVersion = parseInt(fileA.split('.')[0]);
     const fileBVersion = parseInt(fileB.split('.')[0]);
     return fileAVersion - fileBVersion;

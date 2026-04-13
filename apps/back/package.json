@@ -11,9 +11,5 @@
     "@packages/typescript-config": "*",
     "pg": "^8.20.0",
     "ws": "^8.20.0"
-  },
-  "devDependencies": {
-    "@types/pg": "^8.20.0",
-    "@types/ws": "^8.18.1"
   }
 }

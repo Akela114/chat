@@ -1,6 +1,6 @@
 import type { DTOChat, DTOMessage, DTOUser } from "./dto";
 
-export type WSEvent = 'unauthorized' | 'authorized' | 'chatCreated' | 'chatMessageAdded' | 'chatParticipantAdded';
+export type WSEvent = 'unauthorized' | 'authorized' | 'chatCreated' | 'chatMessageAdded' | 'chatParticipantAdded' | 'chatParticipantRemoved';
 
 export type WSPayload = {
     event: 'unauthorized' | 'authorized';
@@ -13,5 +13,8 @@ export type WSPayload = {
     payload: DTOChat;
 } | {
     event: 'chatParticipantAdded';
+    payload: DTOUser;
+} | {
+    event: 'chatParticipantRemoved';
     payload: DTOUser;
 }
