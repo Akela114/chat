@@ -89,6 +89,19 @@ export const createApiRootHandler = (({ authService, chatService } : {
                     res.end(JSON.stringify(body));
                     return;
                 }
+                matches = url.pathname.match(/^\/api\/chats\/(\d+)\/readMessages$/);
+                if (matches) {
+                    const chatId = matches[1];
+                    const authorizedUser = await authService.authorizeUserByToken(authToken);
+                    const body = await chatService.readChatMessage(
+                        { id: chatId },
+                        await getRequestBody(req),
+                        authorizedUser
+                    );
+                    res.statusCode = 201;
+                    res.end(JSON.stringify(body));
+                    return;
+                }
             }
 
             if (req.method === 'GET') {

@@ -7,13 +7,15 @@ export interface DBUser {
 
 export interface DBChat {
     id: number,
-    name: string | null
+    name: string | null,
+    unread_count: number
 }
 
 export interface DBChatParticipant {
     id: number,
     user_id: number,
-    chat_id: number
+    chat_id: number,
+    last_read_message_id: number
 }
 
 export interface DBChatParticipantWithUsername extends DBChatParticipant {
@@ -24,7 +26,7 @@ export interface DBChatWithParticipants extends DBChat {
     participants: DBChatParticipantWithUsername[]
 }
 
-export interface DBChatWithParticipantsAndMessages extends DBChat {
+export interface DBChatWithParticipantsAndMessages extends Omit<DBChat, "unread_count"> {
     participants: DBChatParticipantWithUsername[]
     messages: DBChatMessage[]
 }

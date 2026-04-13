@@ -1,4 +1,4 @@
-import type { DTOAddedParticipant, DTOChat, DTOChatWithMessages, DTOMessage, DTOUser, RequestAddChatParticipant, RequestAddMessage, RequestCreateChat, WSEvent, WSPayload } from "@packages/shared/types";
+import type { DTOAddedParticipant, DTOChat, DTOChatWithMessages, DTOMessage, DTOSuccessfullRequest, DTOUser, RequestAddChatParticipant, RequestAddMessage, RequestCreateChat, RequestReadMessage, WSEvent, WSPayload } from "@packages/shared/types";
 import { ValidationError } from "../errors/validationError.ts";
 import type { ChatRepo } from "../repos/chat.ts";
 import type { UserRepo } from "../repos/user.ts";
@@ -27,6 +27,7 @@ export class ChatService {
         return result.map((chat) => ({
             id: chat.id,
             name: chat.name,
+            unread_message_count: chat.unread_count,
             participants: chat.participants.map((participant) => ({
                 id: participant.user_id,
                 username: participant.username,
@@ -47,6 +48,7 @@ export class ChatService {
         const formattedResult = {
             id: result.id,
             name: result.name,
+            unread_message_count: result.unread_count,
             participants: result.participants.map((participant) => ({
                 id: participant.user_id,
                 username: participant.username,
@@ -70,9 +72,11 @@ export class ChatService {
         if (!result.participants.some((participant) => participant.user_id === authorizedUser.id)) {
             throw new ForbiddenError('not allowed to access this chat');
         }
+        const unreadCount = await this.#chatRepo.getUnreadCount(result.id, authorizedUser.id);
         return {
             id: result.id,
             name: result.name,
+            unread_message_count: unreadCount,
             participants: result.participants.map((participant) => ({
                 id: participant.user_id,
                 username: participant.username,
@@ -155,6 +159,14 @@ export class ChatService {
         })).filter((user) => user.id !== authorizedUser.id)
     }
 
+    async readChatMessage(params: unknown, payload: unknown, authorizedUser: { id: number }): Promise<DTOSuccessfullRequest> {
+        this.#validateReadChatMessageParams(params);
+        this.#validateReadChatMessagePayload(payload);
+        const chat = await this.getChatById({ id: params.id }, authorizedUser);
+        await this.#chatRepo.readChatMessage(chat.id, authorizedUser.id, payload.messageId);
+        return { message: "success" }
+    }
+
     addChatUpdatesSubscriber(subscriber: TChatUpdateSubscriberCallback) {
         const id = randomUUID();
         this.#chatUpdatesSubscribers.set(id, subscriber);
@@ -225,6 +237,24 @@ export class ChatService {
         }
         if (('id' in params) && isNaN(Number(params.id))) {
             throw new ValidationError('id must be a number');
+        }
+    }
+
+    #validateReadChatMessageParams(params: unknown): asserts params is { id: string } {
+        if (typeof params !== 'object' || params === null) {
+            throw new ValidationError('params must be provided');
+        }
+        if (!('id' in params) || !params.id || isNaN(Number(params.id))) {
+            throw new ValidationError('id must be a number');
+        }
+    }
+
+    #validateReadChatMessagePayload(payload: unknown): asserts payload is RequestReadMessage {
+        if (typeof payload !== 'object' || payload === null) {
+            throw new ValidationError('payload must be an object');
+        }
+        if (!('messageId' in payload) || !payload.messageId || isNaN(Number(payload.messageId))) {
+            throw new ValidationError('messageId must be a number');
         }
     }
 }

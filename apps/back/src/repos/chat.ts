@@ -11,6 +11,13 @@ export class ChatRepo {
     async getChatsByParticipant(participantId: number): Promise<DBChatWithParticipants[]> {
         const result = await this.#client.query<DBChatWithParticipants>(
             `SELECT chats.*, 
+                (SELECT COUNT(*)::int 
+                FROM messages 
+                WHERE chat_id = chats.id 
+                AND id > COALESCE(
+                    (SELECT last_read_message_id FROM chat_participants WHERE chat_id = chats.id AND user_id = $1),
+                    0
+                )) as unread_count,
                 json_agg(json_build_object(
                     'id', chat_participants.id,
                     'user_id', chat_participants.user_id,
@@ -59,6 +66,28 @@ export class ChatRepo {
         }
     }
 
+    async getUnreadCount(chatId: number, userId: number): Promise<number> {
+        const id = await this.#client.query<{id: number}>(
+            'SELECT * FROM chat_participants WHERE chat_id = $1 AND user_id = $2',
+            [chatId, userId]
+        )
+
+        console.log(id.rows)
+
+        const result = await this.#client.query<{unread_count: number}>(
+            `SELECT (SELECT COUNT(*)::int 
+                FROM messages 
+                WHERE chat_id = $1 
+                AND id > COALESCE(
+                    (SELECT last_read_message_id FROM chat_participants WHERE chat_id = $1 AND user_id = $2),
+                    0
+                )) as unread_count`,
+            [chatId, userId]
+        );
+        console.log(result.rows)
+        return result.rows[0].unread_count
+    }
+
     async getPossibleParticipants(chatId?: number): Promise<DBUser[]> {
         if (chatId) {
             const result = await this.#client.query<DBUser>(
@@ -96,6 +125,7 @@ export class ChatRepo {
             await this.#client.query('COMMIT');
             return {
                 ...createdChat,
+                unread_count: 0,
                 participants: createdChatParticipants.rows
             };
         } catch (error) {
@@ -105,7 +135,7 @@ export class ChatRepo {
        
     }
 
-    async addChatMessage(chatId: number, senderId: number, text: string) {
+    async addChatMessage(chatId: number, senderId: number, text: string): Promise<DBChatMessage> {
         const result = await this.#client.query<DBChatMessage>(
             'INSERT INTO messages (chat_id, sender_id, text) VALUES ($1, $2, $3) RETURNING *',
             [chatId, senderId, text]
@@ -113,7 +143,7 @@ export class ChatRepo {
         return result.rows[0];
     }
 
-    async addChatParticipant(chatId: number, userId: number) {
+    async addChatParticipant(chatId: number, userId: number): Promise<DBUser> {
         await this.#client.query<DBChatParticipant>(
             'INSERT INTO chat_participants (user_id, chat_id) VALUES ($1, $2) RETURNING *',
             [userId, chatId]
@@ -123,5 +153,12 @@ export class ChatRepo {
             [userId]
         );
         return result.rows[0];
+    }
+
+    async readChatMessage(chatId: number, userId: number, messageId: number): Promise<void> {
+        await this.#client.query<DBChatParticipant>(
+            'UPDATE chat_participants SET last_read_message_id = $1 WHERE chat_id = $2 AND user_id = $3',
+            [messageId, chatId, userId]
+        );
     }
 }

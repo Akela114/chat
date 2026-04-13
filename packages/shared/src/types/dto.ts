@@ -20,6 +20,7 @@ export interface DTOMessage {
 export interface DTOChat {
     id: number,
     name: string | null,
+    unread_message_count: number,
     participants: DTOUser[]
 }
 
@@ -31,4 +32,8 @@ export interface DTOAddedParticipant {
     id: number,
     username: string
     chat_id: number
+}
+
+export interface DTOSuccessfullRequest {
+    message: string
 }

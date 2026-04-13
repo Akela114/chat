@@ -19,3 +19,7 @@ export interface RequestAddMessage {
 export interface RequestAddChatParticipant {
     username: string
 }
+
+export interface RequestReadMessage {
+    messageId: number
+}
