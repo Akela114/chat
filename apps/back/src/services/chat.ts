@@ -167,6 +167,23 @@ export class ChatService {
         return { message: "success" }
     }
 
+    async removeSelfFromChatParticipants(params: unknown, authorizedUser: { id: number }): Promise<DTOSuccessfullRequest> {
+        this.#validateRemoveUserFromChatParams(params);
+        const chat = await this.getChatById({ id: params.id }, authorizedUser);
+        const result = await this.#chatRepo.disableChatParticipant(chat.id, authorizedUser.id);
+        const formattedResult = {
+            id: result.id,
+            username: result.username,
+            chat_id: chat.id
+        }
+        this.#notifyChatUpdatesSubscribers(
+            chat.participants.filter((participant) => participant.id !== authorizedUser.id).map((participant) => participant.id),
+            'chatParticipantRemoved',
+            formattedResult
+        )
+        return { message: "success" }
+    }
+
     addChatUpdatesSubscriber(subscriber: TChatUpdateSubscriberCallback) {
         const id = randomUUID();
         this.#chatUpdatesSubscribers.set(id, subscriber);
@@ -255,6 +272,15 @@ export class ChatService {
         }
         if (!('messageId' in payload) || !payload.messageId || isNaN(Number(payload.messageId))) {
             throw new ValidationError('messageId must be a number');
+        }
+    }
+
+    #validateRemoveUserFromChatParams(params: unknown): asserts params is { id: string } {
+        if (typeof params !== 'object' || params === null) {
+            throw new ValidationError('params must be provided');
+        }
+        if (!('id' in params) || !params.id || isNaN(Number(params.id))) {
+            throw new ValidationError('id must be a number');
         }
     }
 }
