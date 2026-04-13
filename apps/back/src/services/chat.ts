@@ -117,14 +117,8 @@ export class ChatService {
         this.#validateAddChatParticipantPayload(payload);
         this.#validateAddChatParticipantParams(params);
         const chat = await this.getChatById({ id: params.id }, authorizedUser);
-        if (!chat) {
-            throw new NotFoundError('chat not found');
-        }
         if (chat.participants.some((participant) => participant.username === payload.username)) {
             throw new ValidationError('user is already a participant of this chat');
-        }
-        if (!chat.participants.some((participant) => participant.id === authorizedUser.id)) {
-            throw new ForbiddenError('not allowed to access this chat');
         }
         const user = await this.#userRepo.getUserByUsername(payload.username);
         if (!user) {
@@ -142,6 +136,23 @@ export class ChatService {
             formattedResult
         )
         return formattedResult
+    }
+
+    async getPossibleParticipants(params: unknown, authorizedUser: { id: number }): Promise<DTOUser[]> {
+        this.#validateGetPossibleParticipantsParams(params);
+        if (params.chatId) {
+            const chat = await this.getChatById({ id: params.chatId }, authorizedUser);
+            const result = await this.#chatRepo.getPossibleParticipants(chat.id);
+            return result.map((user) => ({
+                id: user.id,
+                username: user.username
+            }))
+        }
+        const result = await this.#chatRepo.getPossibleParticipants();
+        return result.map((user) => ({
+            id: user.id,
+            username: user.username
+        })).filter((user) => user.id !== authorizedUser.id)
     }
 
     addChatUpdatesSubscriber(subscriber: TChatUpdateSubscriberCallback) {
@@ -204,6 +215,15 @@ export class ChatService {
             throw new ValidationError('params must be provided');
         }
         if (!('id' in params) || !params.id || isNaN(Number(params.id))) {
+            throw new ValidationError('id must be a number');
+        }
+    }
+
+    #validateGetPossibleParticipantsParams(params: unknown): asserts params is { chatId?: string } {
+        if (typeof params !== 'object' || params === null) {
+            throw new ValidationError('params must be provided');
+        }
+        if (('id' in params) && isNaN(Number(params.id))) {
             throw new ValidationError('id must be a number');
         }
     }

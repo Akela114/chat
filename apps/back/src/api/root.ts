@@ -101,6 +101,13 @@ export const createApiRootHandler = (({ authService, chatService } : {
                         res.end(JSON.stringify(body));
                         return;
                     }
+                    case '/api/chats/participationCandidates': {
+                        const authorizedUser = await authService.authorizeUserByToken(authToken);
+                        const body = await chatService.getPossibleParticipants(Object.fromEntries(url.searchParams.entries()), authorizedUser);
+                        res.statusCode = 200;
+                        res.end(JSON.stringify(body));
+                        return;
+                    }
                 }
                 let matches = url.pathname.match(/^\/api\/chats\/(\d+)$/);
                 if (matches) {

@@ -59,6 +59,21 @@ export class ChatRepo {
         }
     }
 
+    async getPossibleParticipants(chatId?: number): Promise<DBUser[]> {
+        if (chatId) {
+            const result = await this.#client.query<DBUser>(
+                'SELECT * FROM users WHERE id NOT IN (SELECT user_id FROM chat_participants WHERE chat_id = $1)',
+                [chatId]
+            );
+            return result.rows;
+        }
+
+        const result = await this.#client.query<DBUser>(
+            'SELECT * FROM users'
+        );
+        return result.rows;
+    }
+
     async createChat(participantIds: number[]): Promise<DBChatWithParticipants> {
         try {
             await this.#client.query('BEGIN');
