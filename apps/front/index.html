@@ -9,7 +9,10 @@
   <body>
     <div class="container" id="authContainer">
       <div class="form-container">
-        <h2 id="formTitle">Вход</h2>
+        <div class="app-title">
+          <img class="chat-logo" src="./public/logo.png" />
+          <div id="formTitle">Вход</div>
+        </div>
         <div id="errorMessage" class="error" style="display: none"></div>
         <input type="text" id="username" placeholder="Имя пользователя" />
         <input type="password" id="password" placeholder="Пароль" />
@@ -20,7 +23,10 @@
 
     <div class="chat-container" id="chatContainer">
       <div class="chat-header">
-        <div class="chat-title">Мессенджер</div>
+        <div class="chat-title">
+          <img class="chat-logo" src="./public/logo.png" />
+          <div>Убийца MAXа</div>
+        </div>
         <div class="user-info">
           <span id="currentUser"></span>
           <button id="logoutBtn" class="logout-btn">Выйти</button>
