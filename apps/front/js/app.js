@@ -41,8 +41,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+
+    chatManager.init();
     auth.init();
-    chatManager.init()
     
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {

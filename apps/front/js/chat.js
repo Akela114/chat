@@ -6,6 +6,7 @@ class ChatManager {
         this.chats = new Map();
         this.currentChatId = null;
         this.possibleUsers = new Map();
+        this.allPossibleUsers = new Map();
         this.unreadCounts = new Map();
         this.isLoading = false;
         
@@ -17,7 +18,6 @@ class ChatManager {
         this.messageInput = document.getElementById('messageInput');
         this.sendBtn = document.getElementById('sendBtn');
         this.createChatBtn = document.getElementById('createChatBtn');
-        this.newChatUsername = document.getElementById('newChatUsername');
         this.currentUserSpan = document.getElementById('currentUser');
     }
     
@@ -34,7 +34,7 @@ class ChatManager {
         
         window.addEventListener('auth:success', () => {
             this.loadChats();
-            this.loadPossibleUsers();
+            this.loadAllPossibleUsers();
         });
         window.addEventListener('auth:logout', () => this.reset());
     }
@@ -122,6 +122,21 @@ class ChatManager {
             users.forEach(user => {
                 if (user.id !== currentUser?.id) {
                     this.possibleUsers.set(user.id, user);
+                }
+            });
+        } catch (error) {
+            console.error('Failed to load possible users:', error);
+        }
+    }
+
+    async loadAllPossibleUsers(chatId = null) {
+        try {
+            const users = await this.api.getPossibleParticipants();
+            this.allPossibleUsers.clear();
+            const currentUser = this.auth.getCurrentUser();
+            users.forEach(user => {
+                if (user.id !== currentUser?.id) {
+                    this.allPossibleUsers.set(user.id, user);
                 }
             });
         } catch (error) {
@@ -261,6 +276,7 @@ class ChatManager {
         } else {
             const emptyMessage = document.createElement('div');
             emptyMessage.className = 'welcome-message';
+            emptyMessage.id = 'emptyMessage';
             emptyMessage.innerHTML = '<p>Нет сообщений. Напишите что-нибудь!</p>';
             this.messagesArea.appendChild(emptyMessage);
         }
@@ -300,11 +316,16 @@ class ChatManager {
         const timeSpan = document.createElement('div');
         timeSpan.className = 'message-time';
         const date = new Date(message.created_at);
-        timeSpan.textContent = date.toLocaleString();
+        timeSpan.textContent = date.toLocaleString('ru-RU');
         messageContent.appendChild(timeSpan);
         
         messageDiv.appendChild(messageContent);
         this.messagesArea.appendChild(messageDiv);
+
+        const emptyMessage = document.getElementById('emptyMessage');
+        if (emptyMessage) {
+            emptyMessage.remove();
+        }
     }
     
     escapeHtml(text) {
@@ -371,21 +392,77 @@ class ChatManager {
     }
     
     async createNewChat() {
-        const username = this.newChatUsername.value.trim();
-        if (!username) {
-            this.showError('Введите username пользователя');
-            return;
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        `;
+        
+        const modalContent = document.createElement('div');
+        modalContent.className = 'modal-content';
+        modalContent.style.cssText = `
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            min-width: 300px;
+        `;
+        
+        const availableInChat = Array.from(this.allPossibleUsers.values());
+        
+        if (availableInChat.length === 0) {
+            modalContent.innerHTML = `
+                <h3 style="margin-bottom: 20px;">Выбрать участника</h3>
+                <p>Нет доступных пользователей для добавления</p>
+                <button id="cancelAddBtn" style="margin-top: 15px;">Закрыть</button>
+            `;
+        } else {
+            modalContent.innerHTML = `
+                <h3 style="margin-bottom: 20px;">Добавить участника</h3>
+                <select id="userToAdd" style="width: 100%; padding: 10px; margin-bottom: 15px;">
+                    <option value="">Выберите пользователя</option>
+                    ${availableInChat.map(user => `<option value="${this.escapeHtml(user.username)}">${this.escapeHtml(user.username)}</option>`).join('')}
+                </select>
+                <div style="display: flex; gap: 10px;">
+                    <button id="confirmAddBtn" style="flex: 1;">Добавить</button>
+                    <button id="cancelAddBtn" style="flex: 1; background: #999;">Отмена</button>
+                </div>
+            `;
         }
         
-        try {
-            const chat = await this.api.createChat(username);
-            this.chats.set(chat.id, chat);
-            this.renderChatsList();
-            this.newChatUsername.value = '';
-            await this.openChat(chat.id);
-        } catch (error) {
-            this.showError(error.message);
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+        
+        const confirmBtn = modalContent.querySelector('#confirmAddBtn');
+        const cancelBtn = modalContent.querySelector('#cancelAddBtn');
+        const select = modalContent.querySelector('#userToAdd');
+        
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', async () => {
+                try {
+                    const username = select.value;
+                    if (username) {
+                        const chat = await this.api.createChat(username);
+                        this.chats.set(chat.id, chat);
+                        this.renderChatsList();
+                        await this.openChat(chat.id);
+                        modal.remove();
+                    }
+                } catch (error) {
+                    this.showError(error.message);
+                }
+            });
         }
+        
+        cancelBtn.addEventListener('click', () => modal.remove());
     }
     
     showAddParticipantDialog() {
