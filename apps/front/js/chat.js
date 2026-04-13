@@ -7,6 +7,7 @@ class ChatManager {
         this.currentChatId = null;
         this.possibleUsers = new Map();
         this.unreadCounts = new Map();
+        this.isLoading = false;
         
         // DOM элементы
         this.chatsList = document.getElementById('chatsList');
@@ -33,12 +34,21 @@ class ChatManager {
         this.ws.on('chatMessageAdded', (payload) => this.onMessageReceived(payload));
         this.ws.on('chatParticipantAdded', (payload) => this.onParticipantAdded(payload));
         
-        window.addEventListener('auth:success', () => this.loadChats());
+        window.addEventListener('auth:success', () => {
+            this.loadChats();
+            this.loadPossibleUsers();
+        });
         window.addEventListener('auth:logout', () => this.reset());
     }
     
     async loadChats() {
+        if (this.isLoading) return;
+        
+        this.isLoading = true;
+        
         try {
+            this.showLoadingIndicator();
+            
             const chats = await this.api.getChats();
             this.chats.clear();
             chats.forEach(chat => {
@@ -46,9 +56,63 @@ class ChatManager {
                 this.unreadCounts.set(chat.id, chat.unread_message_count || 0);
             });
             this.renderChatsList();
-            this.loadPossibleUsers();
+            
+            this.hideLoadingIndicator();
         } catch (error) {
             console.error('Failed to load chats:', error);
+            this.hideLoadingIndicator();
+            
+            if (error.message === 'Не авторизован') {
+                this.auth.logout();
+            }
+        } finally {
+            this.isLoading = false;
+        }
+    }
+    
+    showLoadingIndicator() {
+        if (this.chatsList) {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'chats-loading';
+            loadingDiv.className = 'loading-indicator';
+            loadingDiv.innerHTML = '<div class="loading-spinner"></div><div>Загрузка чатов...</div>';
+            loadingDiv.style.cssText = `
+                text-align: center;
+                padding: 20px;
+                color: #666;
+            `;
+            
+            if (!document.querySelector('#loading-styles')) {
+                const styles = document.createElement('style');
+                styles.id = 'loading-styles';
+                styles.textContent = `
+                    .loading-spinner {
+                        width: 30px;
+                        height: 30px;
+                        border: 3px solid #f3f3f3;
+                        border-top: 3px solid #667eea;
+                        border-radius: 50%;
+                        animation: spin 1s linear infinite;
+                        margin: 0 auto 10px;
+                    }
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                `;
+                document.head.appendChild(styles);
+            }
+
+            if (this.chatsList.children.length === 0) {
+                this.chatsList.appendChild(loadingDiv);
+            }
+        }
+    }
+    
+    hideLoadingIndicator() {
+        const loadingIndicator = document.getElementById('chats-loading');
+        if (loadingIndicator) {
+            loadingIndicator.remove();
         }
     }
     
@@ -56,8 +120,9 @@ class ChatManager {
         try {
             const users = await this.api.getPossibleParticipants(chatId);
             this.possibleUsers.clear();
+            const currentUser = this.auth.getCurrentUser();
             users.forEach(user => {
-                if (user.id !== this.auth.getCurrentUser()?.id) {
+                if (user.id !== currentUser?.id) {
                     this.possibleUsers.set(user.id, user);
                 }
             });
@@ -72,12 +137,27 @@ class ChatManager {
         this.chatsList.innerHTML = '';
         const currentUser = this.auth.getCurrentUser();
         
+        if (this.chats.size === 0) {
+            const emptyMessage = document.createElement('div');
+            emptyMessage.className = 'chat-item';
+            emptyMessage.innerHTML = `
+                <div class="chat-item-name">Нет чатов</div>
+                <div class="chat-item-participants">Создайте новый чат, чтобы начать общение</div>
+            `;
+            emptyMessage.style.textAlign = 'center';
+            emptyMessage.style.color = '#999';
+            this.chatsList.appendChild(emptyMessage);
+            return;
+        }
+        
         const sortedChats = Array.from(this.chats.values()).sort((a, b) => {
             const aUnread = this.unreadCounts.get(a.id) || 0;
             const bUnread = this.unreadCounts.get(b.id) || 0;
+            
             if (aUnread > 0 && bUnread === 0) return -1;
             if (aUnread === 0 && bUnread > 0) return 1;
-            return 0;
+            
+            return b.id - a.id;
         });
         
         for (const chat of sortedChats) {
@@ -90,30 +170,24 @@ class ChatManager {
             chatElement.className = `chat-item ${this.currentChatId === chat.id ? 'active' : ''}`;
             chatElement.innerHTML = `
                 <div class="chat-item-name">
-                    ${chatName}
-                    ${isGroup ? ' 👥' : ''}
+                    <span>${this.escapeHtml(chatName)} ${isGroup ? '👥' : ''}</span>
                     ${unreadCount > 0 ? `<span class="unread-badge">${unreadCount}</span>` : ''}
                 </div>
                 <div class="chat-item-participants">
-                    ${chat.participants.map(p => p.username).join(', ')}
+                    ${chat.participants.map(p => this.escapeHtml(p.username)).join(', ')}
                 </div>
             `;
             chatElement.addEventListener('click', () => this.openChat(chat.id));
             this.chatsList.appendChild(chatElement);
         }
-        
-        if (this.chats.size === 0) {
-            const emptyMessage = document.createElement('div');
-            emptyMessage.className = 'chat-item';
-            emptyMessage.innerHTML = '<div class="chat-item-name">Нет чатов</div><div class="chat-item-participants">Создайте новый чат</div>';
-            emptyMessage.style.textAlign = 'center';
-            emptyMessage.style.color = '#999';
-            this.chatsList.appendChild(emptyMessage);
-        }
     }
     
     async openChat(chatId) {
+        if (this.currentChatId === chatId) return;
+        
         try {
+            this.showMessagesLoadingIndicator();
+            
             const chat = await this.api.getChatById(chatId);
             this.chats.set(chatId, chat);
             this.currentChatId = chatId;
@@ -123,6 +197,8 @@ class ChatManager {
             this.renderChat(chat);
             
             this.messageInputArea.style.display = 'flex';
+            this.messageInput.disabled = false;
+            this.sendBtn.disabled = false;
             
             if (chat.messages && chat.messages.length > 0) {
                 const lastMessage = chat.messages[chat.messages.length - 1];
@@ -131,9 +207,31 @@ class ChatManager {
 
             await this.loadPossibleUsers(chatId);
             this.renderAddParticipantButton();
+
+            localStorage.setItem('last_opened_chat', chatId);
+
+            window.dispatchEvent(new CustomEvent('chat:opened', { detail: { chatId } }));
+            
+            this.hideMessagesLoadingIndicator();
         } catch (error) {
             console.error('Failed to open chat:', error);
+            this.hideMessagesLoadingIndicator();
+            this.showError('Не удалось загрузить чат');
         }
+    }
+    
+    showMessagesLoadingIndicator() {
+        if (this.messagesArea) {
+            this.messagesArea.innerHTML = `
+                <div class="loading-indicator" style="text-align: center; padding: 40px;">
+                    <div class="loading-spinner"></div>
+                    <div>Загрузка сообщений...</div>
+                </div>
+            `;
+        }
+    }
+    
+    hideMessagesLoadingIndicator() {
     }
     
     renderChat(chat) {
@@ -145,9 +243,9 @@ class ChatManager {
         this.chatInfo.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <h3>${chatName} ${isGroup ? '(Группа)' : ''}</h3>
+                    <h3>${this.escapeHtml(chatName)} ${isGroup ? '(Группа)' : ''}</h3>
                     <div style="font-size: 12px; color: #666; margin-top: 5px;">
-                        Участники: ${chat.participants.map(p => p.username).join(', ')}
+                        Участники: ${chat.participants.map(p => this.escapeHtml(p.username)).join(', ')}
                     </div>
                 </div>
                 ${isGroup ? `
@@ -197,13 +295,13 @@ class ChatManager {
             if (sender) {
                 const senderSpan = document.createElement('div');
                 senderSpan.className = 'message-sender';
-                senderSpan.textContent = sender.username;
+                senderSpan.textContent = this.escapeHtml(sender.username);
                 messageContent.appendChild(senderSpan);
             }
         }
         
         const textSpan = document.createElement('div');
-        textSpan.textContent = message.text;
+        textSpan.textContent = this.escapeHtml(message.text);
         messageContent.appendChild(textSpan);
         
         const timeSpan = document.createElement('div');
@@ -216,9 +314,20 @@ class ChatManager {
         this.messagesArea.appendChild(messageDiv);
     }
     
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
     async sendMessage() {
         const text = this.messageInput.value.trim();
         if (!text || !this.currentChatId) return;
+        
+        if (this.isLoading) {
+            this.showError('Подождите, данные загружаются...');
+            return;
+        }
         
         try {
             const message = await this.api.sendMessage(this.currentChatId, text);
@@ -317,17 +426,25 @@ class ChatManager {
             !currentChat?.participants.some(p => p.id === user.id)
         );
         
-        modalContent.innerHTML = `
-            <h3 style="margin-bottom: 20px;">Добавить участника</h3>
-            <select id="userToAdd" style="width: 100%; padding: 10px; margin-bottom: 15px;">
-                <option value="">Выберите пользователя</option>
-                ${availableInChat.map(user => `<option value="${user.username}">${user.username}</option>`).join('')}
-            </select>
-            <div style="display: flex; gap: 10px;">
-                <button id="confirmAddBtn" style="flex: 1;">Добавить</button>
-                <button id="cancelAddBtn" style="flex: 1; background: #999;">Отмена</button>
-            </div>
-        `;
+        if (availableInChat.length === 0) {
+            modalContent.innerHTML = `
+                <h3 style="margin-bottom: 20px;">Добавить участника</h3>
+                <p>Нет доступных пользователей для добавления</p>
+                <button id="cancelAddBtn" style="margin-top: 15px;">Закрыть</button>
+            `;
+        } else {
+            modalContent.innerHTML = `
+                <h3 style="margin-bottom: 20px;">Добавить участника</h3>
+                <select id="userToAdd" style="width: 100%; padding: 10px; margin-bottom: 15px;">
+                    <option value="">Выберите пользователя</option>
+                    ${availableInChat.map(user => `<option value="${this.escapeHtml(user.username)}">${this.escapeHtml(user.username)}</option>`).join('')}
+                </select>
+                <div style="display: flex; gap: 10px;">
+                    <button id="confirmAddBtn" style="flex: 1;">Добавить</button>
+                    <button id="cancelAddBtn" style="flex: 1; background: #999;">Отмена</button>
+                </div>
+            `;
+        }
         
         modal.appendChild(modalContent);
         document.body.appendChild(modal);
@@ -336,13 +453,15 @@ class ChatManager {
         const cancelBtn = modalContent.querySelector('#cancelAddBtn');
         const select = modalContent.querySelector('#userToAdd');
         
-        confirmBtn.addEventListener('click', async () => {
-            const username = select.value;
-            if (username) {
-                await this.addParticipantToChat(username);
-                modal.remove();
-            }
-        });
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', async () => {
+                const username = select.value;
+                if (username) {
+                    await this.addParticipantToChat(username);
+                    modal.remove();
+                }
+            });
+        }
         
         cancelBtn.addEventListener('click', () => modal.remove());
     }
@@ -362,12 +481,13 @@ class ChatManager {
     
     scrollToBottom() {
         if (this.messagesArea) {
-            this.messagesArea.scrollTop = this.messagesArea.scrollHeight;
+            setTimeout(() => {
+                this.messagesArea.scrollTop = this.messagesArea.scrollHeight;
+            }, 100);
         }
     }
     
     showError(message) {
-        console.error(message);
         const notification = document.createElement('div');
         notification.style.cssText = `
             position: fixed;
@@ -392,9 +512,11 @@ class ChatManager {
         this.chats.clear();
         this.currentChatId = null;
         this.unreadCounts.clear();
+        this.isLoading = false;
         this.renderChatsList();
         this.messagesArea.innerHTML = '<div class="welcome-message"><p>Выберите чат, чтобы начать общение</p></div>';
         this.chatInfo.innerHTML = '<h3>Выберите чат</h3>';
         this.messageInputArea.style.display = 'none';
+        localStorage.removeItem('last_opened_chat');
     }
 }
