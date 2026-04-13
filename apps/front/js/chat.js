@@ -263,7 +263,6 @@ class ChatManager {
                 </div>
                 <div class="chatButtons">
                     <button id="addParticipantBtn" class="add-participant-btn" style="width: auto; padding: 8px 15px; background: #48bb78;">
-                        + Добавить участника
                     </button>
                     <button id="leaveChatBtn" class="leave-chat-btn" style="width: auto; padding: 6px 8px; background: #f56565;" title="Выйти из чата">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6" width="20" height="20" style="transform: translateY(1px);">
