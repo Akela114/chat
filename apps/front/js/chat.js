@@ -204,7 +204,6 @@ class ChatManager {
             }
 
             await this.loadPossibleUsers(chatId);
-            this.renderAddParticipantButton();
 
             localStorage.setItem('last_opened_chat', chatId);
 
@@ -246,11 +245,9 @@ class ChatManager {
                         Участники: ${chat.participants.map(p => this.escapeHtml(p.username)).join(', ')}
                     </div>
                 </div>
-                ${isGroup ? `
-                    <button id="addParticipantBtn" class="add-participant-btn" style="width: auto; padding: 8px 15px; background: #48bb78;">
-                        + Добавить участника
-                    </button>
-                ` : ''}
+                <button id="addParticipantBtn" class="add-participant-btn" style="width: auto; padding: 8px 15px; background: #48bb78;">
+                    + Добавить участника
+                </button>
             </div>
         `;
         
@@ -268,11 +265,9 @@ class ChatManager {
             this.messagesArea.appendChild(emptyMessage);
         }
         
-        if (isGroup) {
-            const addBtn = document.getElementById('addParticipantBtn');
-            if (addBtn) {
-                addBtn.addEventListener('click', () => this.showAddParticipantDialog());
-            }
+        const addBtn = document.getElementById('addParticipantBtn');
+        if (addBtn) {
+            addBtn.addEventListener('click', () => this.showAddParticipantDialog());
         }
     }
     
