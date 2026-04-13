@@ -267,7 +267,6 @@ button:hover {
   align-items: center;
 }
 
-/* Scrollbar styles */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -283,4 +282,63 @@ button:hover {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+.unread-badge {
+  background: #f44336;
+  color: white;
+  border-radius: 50%;
+  padding: 2px 6px;
+  font-size: 11px;
+  margin-left: 8px;
+  display: inline-block;
+}
+
+.add-participant-btn {
+  background: #48bb78 !important;
+}
+
+.add-participant-btn:hover {
+  background: #38a169 !important;
+}
+
+.modal {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.chat-item-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+select {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+select:focus {
+  outline: none;
+  border-color: #667eea;
 }

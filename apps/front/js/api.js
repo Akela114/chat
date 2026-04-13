@@ -79,4 +79,20 @@ class API {
     async sendMessage(chatId, text) {
         return this.request(`/chats/${chatId}/messages`, 'POST', { text }, true);
     }
+
+    async addChatParticipant(chatId, username) {
+        return this.request(`/chats/${chatId}/participants`, 'POST', { username }, true);
+    }
+
+    async getPossibleParticipants(chatId = null) {
+        let endpoint = '/chats/participationCandidates';
+        if (chatId) {
+            endpoint += `?chatId=${chatId}`;
+        }
+        return this.request(endpoint, 'GET', null, true);
+    }
+
+    async markMessagesAsRead(chatId, messageId) {
+        return this.request(`/chats/${chatId}/readMessages`, 'POST', { messageId }, true);
+    }
 }
